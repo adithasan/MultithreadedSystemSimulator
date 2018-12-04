@@ -1,39 +1,47 @@
-#include <iostream>
-#include <string>
-
-#define NRES_TYPES 10
-#define NTASKS 25
+#include "UtilityClasses.h"
 
 using namespace std;
-class ParseUtility
+
+void ParseUtility::ParseResource(string inputLine, Resource resources[])
 {
-    private:
-    static void ParseUtility::ParseResource(string inputLine, Resource resources[])
+    // resources A:1 B:1 C:1 D:1 E:1
+}
+
+void ParseUtility::ParseAsynchronousTask(string inputLine, AsynchronousTask tasks[])
+{
+
+}
+
+void ParseUtility::ParseInputFile(string fileName)
+{
+    
+}
+
+ProgramStateInfo ParseUtility::ParseProgramStateInfo(char** arguments)
+{
+    //a4tasks inputFile monitorTime NITER
+    ProgramStateInfo stateInfo;
+    stateInfo.mFileName = arguments[1];
+    stateInfo.mMonitorTime = atoi(arguments[2]);
+    if (stateInfo.mMonitorTime <= 0) 
     {
-        // resources A:1 B:1 C:1 D:1 E:1
+        cout<<"Invalid monitor time entered\n";
+        exit(1);
+    }
+    stateInfo.mNumRequiredIterations = atoi (arguments[3]);
+    if (stateInfo.mNumRequiredIterations <= 0) 
+    {
+        cout<<"Invalid monitor time entered\n";
+        exit(1);
     }
 
-    static void ParseUtility::ParseAsynchronousTask(string inputLine, AsynchronousTask tasks[])
-    {
+    return stateInfo;
+}
 
-    }
-    public:
-    static void ParseUtility::ParseInputFile(string filePath)
-    {
-        
-    }
-};
-
-class Resource
+void PrintUtility::PrintProgramStateInfo(ProgramStateInfo* stateInfo)
 {
-    string mName;
-    int mValue;
-};
-
-class AsynchronousTask
-{
-    string mName;
-    int mBusyTime;
-    int mIdleTime;
-    Resource mRequiredResources [NRES_TYPES];
-};
+    cout<< "Started program with following parameters: "<<endl;
+    cout<< "Input File Name: " << stateInfo->mFileName <<endl;
+    cout<< "Monitor time (millisec): " << stateInfo->mMonitorTime <<endl;
+    cout<< "Required Iterations: " << stateInfo->mNumRequiredIterations <<endl;
+}
