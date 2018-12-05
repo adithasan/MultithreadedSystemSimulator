@@ -49,13 +49,13 @@ class TaskDepot
 class ParseUtility 
 {
     private:
-    static void ParseResource(string inputLine, vector<Resource> resources);
-    static void ParseAsynchronousTask(string inputLine, vector<AsynchronousTask> tasks);
+    static void ParseResource(string inputLine, vector<Resource>& resources);
+    static void ParseAsynchronousTask(string inputLine, vector<AsynchronousTask>& tasks);
 
     ParseUtility(){} // this is to disallow public instantiation of static utility class
 
     public:
-    static void ParseInputFile(string filePath, vector<AsynchronousTask> tasks, vector<Resource> resources);
+    static void ParseInputFile(string filePath, vector<AsynchronousTask>& tasks, vector<Resource>& resources);
     static ProgramStateInfo ParseProgramStateInfo(char** arguments);
 };
 
