@@ -59,14 +59,10 @@ void ParseUtility::ParseAsynchronousTask(string inputLine, TaskDepot& taskDepot,
                 {
                     Resource resource(resourceParams.at(0), stoi(resourceParams.at(1)));
                     task.AddRequiredResource(resource);
-                    
                 }
             }
         }
-        cout<< "Created Task following params: " <<endl;
-        cout<< "Name: " << task.GetName()<<endl;;
-        cout<< " Numiterations: " <<task.GetNumIterations()<<endl;;
-        cout<< "Num of Required Resource Types: " << task.GetNumOfRequiredResourceTypes()<<endl;
+        taskDepot.mTasks.push_back(task);
     }
     
 }
@@ -91,7 +87,6 @@ void ParseUtility::ParseInputFile(string fileName, TaskDepot& taskDepot, Resourc
         cout<< "Error opening input file" << endl;
         exit(1);
     }
-
     inputFile.close();
 }
 
@@ -139,9 +134,42 @@ AsynchronousTask::AsynchronousTask(string name, int busyTime, int idleTime, int 
     mBusyTime = busyTime;
     mIdleTime = idleTime;
     mNumIterations = numIterations;
+    mIsFinished = false;
+    mIsClaimed = false;
 }
 
 string AsynchronousTask::GetName() const { return mName; }
 int AsynchronousTask::GetNumIterations() const { return mNumIterations; }
 void AsynchronousTask::AddRequiredResource(Resource resource) { mRequiredResources.push_back(resource); }
 int AsynchronousTask::GetNumOfRequiredResourceTypes() const { return mRequiredResources.size(); }
+bool AsynchronousTask::IsClaimed() const { return mIsClaimed; }
+void AsynchronousTask::SetClaimed() 
+{
+    if (mIsClaimed == false) mIsClaimed = true;
+}
+
+
+TaskDepot::TaskDepot() { mMutex = PTHREAD_MUTEX_INITIALIZER; }
+ResourceDepot::ResourceDepot() { mMutex = PTHREAD_MUTEX_INITIALIZER; }
+
+AsynchronousTask& TaskDepot::AcquireTask()
+{
+    if (pthread_mutex_lock(&mMutex))
+    {
+        cout<< "Error locking mutex in TaskDepot::AcquireTask()";
+        exit(1);
+    }
+    for (AsynchronousTask& task : mTasks)
+    {
+        if (!task.IsClaimed()) 
+        {
+            task.SetClaimed();
+            return task;
+        }
+    }
+    if (pthread_mutex_unlock(&mMutex))
+    {
+        cout<< "Error unlocking mutex in TaskDepot::AcquireTask()";
+        exit(1);
+    }
+}

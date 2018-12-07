@@ -38,7 +38,8 @@ class AsynchronousTask
     int mBusyTime;
     int mIdleTime;
     int mNumIterations;
-    bool isFinished;
+    bool mIsClaimed;
+    bool mIsFinished;
     vector<Resource> mRequiredResources;
 
     public:
@@ -47,14 +48,19 @@ class AsynchronousTask
     int GetNumIterations() const;
     void AddRequiredResource(Resource resource);
     int GetNumOfRequiredResourceTypes() const;
+    bool IsClaimed() const;
+
+    void ClaimTask();
 };
 
 class ResourceDepot
 {
     vector<Resource> mResources;
+    pthread_mutex_t mMutex;
     friend class ParseUtility;
 
     public:
+    ResourceDepot();
     bool AcquireResources(vector<Resource> requestedResources);
     bool ReleaseResources(vector<Resource> heldResources);
 };
@@ -62,8 +68,10 @@ class ResourceDepot
 class TaskDepot
 {
     friend class ParseUtility;
+    pthread_mutex_t mMutex;
     vector<AsynchronousTask> mTasks;
     public:
+    TaskDepot();
     AsynchronousTask& AcquireTask();
 };
 
