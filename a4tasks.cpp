@@ -4,8 +4,8 @@ using namespace std;
 int main(int argc, char** argv) 
 {
     ProgramStateInfo stateInfo;
-    AsynchronousTask tasks[25];
-    Resource resources [10];
+    ResourceDepot resourceDepot;
+    TaskDepot taskDepot;
     if (argc != 4)
     {
         cout<<"Invalid number of arguments. Exiting program\n";
@@ -15,5 +15,5 @@ int main(int argc, char** argv)
 
     PrintUtility::PrintProgramStateInfo(&stateInfo);
 
-    ParseUtility::ParseInputFile(stateInfo.mFileName, tasks, resources);
+    ParseUtility::ParseInputFile(stateInfo.mFileName, taskDepot, resourceDepot, stateInfo.mNumRequiredIterations);
 }
