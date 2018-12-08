@@ -121,7 +121,7 @@ void PrintUtility::PrintProgramStateInfo(ProgramStateInfo* stateInfo)
 
 void PrintUtility::PrintResourceVector(vector<Resource>& resources)
 {
-    for (Resource resource : resources)
+    for (Resource& resource : resources)
     {
         cout<< resource.GetName() << ":" <<resource.GetValue()<<" ";
     }
@@ -130,11 +130,50 @@ void PrintUtility::PrintResourceVector(vector<Resource>& resources)
 void PrintUtility::PrintSystemResources(ResourceDepot& resourceDepot)
 {
     cout<<"System Resources: " <<endl;
-    for (Resource resource : resourceDepot.mResources)
+    for (Resource& resource : resourceDepot.mResources)
     {
         cout << "\t" << resource.GetName() << ": (maxAvail= " << resource.GetValue() << "), held = 0"<<endl;
     }
 }
+
+void PrintUtility::PrintMonitorStateInfo(TaskDepot& taskDepot)
+{
+    /*
+        monitor: [WAIT]
+                 [RUN] t1 t4
+                 [IDLE] t2 t3 t5
+    */
+   vector<string> waitingThreadIds;
+   vector<string> runningThreadIds;
+   vector<string> idleThreadIds;
+
+   for (AsynchronousTask& task : taskDepot.mTasks)
+   {
+       switch(task.GetState())
+       {
+        case Idle:
+            idleThreadIds.push_back(task.GetName());
+            break;
+        case Waiting:
+            waitingThreadIds.push_back(task.GetName());
+            break;
+        case Running:
+            runningThreadIds.push_back(task.GetName());
+            break;
+       }
+   }
+   cout << "Monitor: [WAIT] ";
+   for (string id : waitingThreadIds) cout<< id << " ";
+   cout<<endl;
+   cout << "[RUN] ";
+   for (string id : runningThreadIds) cout<< id << " ";
+   cout<<endl;
+   cout << "[IDLE] ";
+   for (string id : idleThreadIds) cout<< id << " ";
+   cout<<endl;
+   cout<<endl;
+}
+
 
 void PrintUtility::PrintTaskStatus(TaskDepot& taskDepot)
 {
@@ -150,7 +189,7 @@ void PrintUtility::PrintTaskStatus(TaskDepot& taskDepot)
     cout<<endl;
     cout<<endl;
     cout<< "System Tasks: " <<endl;
-    for (AsynchronousTask task: taskDepot.mTasks)
+    for (AsynchronousTask& task: taskDepot.mTasks)
     {
         cout<< "[" << counter << "] " << task.GetName();
         string state;

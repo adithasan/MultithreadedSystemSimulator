@@ -94,10 +94,13 @@ class TaskDepot
 
 struct DataDepo
 {
+    ProgramStateInfo* mProgramStateInfo;
     TaskDepot* mTaskDepot;
     ResourceDepot* mResourceDepot;
-    DataDepo(TaskDepot* taskDepot, ResourceDepot* resourceDepot) 
-        : mTaskDepot(taskDepot), mResourceDepot(resourceDepot) {}
+    bool mIsProgramFinished;
+    bool mMonitorPrinting;
+    DataDepo(ProgramStateInfo* programStateInfo, TaskDepot* taskDepot, ResourceDepot* resourceDepot) 
+        : mProgramStateInfo(programStateInfo), mTaskDepot(taskDepot), mResourceDepot(resourceDepot), mIsProgramFinished(false), mMonitorPrinting(false) {}
 };
 
 class ParseUtility 
@@ -121,6 +124,7 @@ class PrintUtility
     static void PrintResourceVector(vector<Resource>& resources);
     static void PrintSystemResources(ResourceDepot& resourceDepot);
     static void PrintTaskStatus(TaskDepot& taskDepot);
+    static void PrintMonitorStateInfo(TaskDepot& taskDepot);
 };
 
 #endif
