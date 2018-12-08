@@ -10,6 +10,7 @@ int main(int argc, char** argv)
     ProgramStateInfo stateInfo;
     ResourceDepot resourceDepot;
     TaskDepot taskDepot;
+    clock_t startTime = clock();
     if (argc != 4)
     {
         cout<<"Invalid number of arguments. Exiting program\n";
@@ -23,7 +24,7 @@ int main(int argc, char** argv)
     cout<< "Number of tasks: " << taskDepot.GetNumTasks() << endl;
     cout<< "Number of resource types: " << resourceDepot.GetNumOfResourceTypes() << endl;
 
-    DataDepo* dataDepo = new DataDepo(&stateInfo, &taskDepot, &resourceDepot);
+    DataDepo* dataDepo = new DataDepo(&stateInfo, &taskDepot, &resourceDepot, &startTime);
     pthread_t TID[taskDepot.GetNumTasks()];
     pthread_t monitorThread;
     // create threads for each task
@@ -43,6 +44,9 @@ int main(int argc, char** argv)
     pthread_join(monitorThread, NULL);
     PrintUtility::PrintSystemResources(*dataDepo->mResourceDepot);
     PrintUtility::PrintTaskStatus(*dataDepo->mTaskDepot);
+
+    double sysRunTime = ((double)(clock() - startTime)/CLOCKS_PER_SEC)*1000;
+    cout<<"System runtime: " << sysRunTime << " msec" << endl;
 }
 
 void *RunTask(void* ptr)
@@ -67,8 +71,8 @@ void *RunTask(void* ptr)
                 break;
             } 
             task.Wait(10);
+            
         }
-
         // wait for busy time
         task.Wait(task.GetBusyTime());
         // relinquish resources
@@ -77,9 +81,15 @@ void *RunTask(void* ptr)
         while(depo->mMonitorPrinting) {} // spin while monitor is printing
         task.SetState(Idle);
         task.Wait(task.GetIdleTime());
+        
+        // task: t1 (tid= 140214559033088, iter= 3, time= 600 msec)
+        double timeTaken = ((double)(clock() - *depo->mStartTime)/CLOCKS_PER_SEC)*1000;
+        cout<< "Task: " << task.GetName();
+        cout<< " (threadId: " << thId<< ",";
+        cout<<" iter: " << counter<< ",";
+        cout<<" time: " << timeTaken << " msec)" << endl;
         counter++;
     }
-    cout<<"Thread id: " << thId << " has completed " <<task.GetNumIterations() << " iterations"<<endl;
     pthread_exit(NULL);
 }
 
@@ -89,7 +99,10 @@ void MonitorWait(int intervalInMillisec)
     interval.tv_sec =  (long) intervalInMillisec / 1000;              // seconds 
     interval.tv_nsec = (long) ((intervalInMillisec % 1000) * 1E6);    // nanoseconds
     if (nanosleep(&interval, NULL) < 0)
-      printf("warning: delay: %s\n", strerror(errno));
+    {
+        cout<<"Delay error"<<endl;
+        exit(1);
+    }
 }
 
 void *RunMonitor(void* ptr)

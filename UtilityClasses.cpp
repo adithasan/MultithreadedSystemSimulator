@@ -138,11 +138,6 @@ void PrintUtility::PrintSystemResources(ResourceDepot& resourceDepot)
 
 void PrintUtility::PrintMonitorStateInfo(TaskDepot& taskDepot)
 {
-    /*
-        monitor: [WAIT]
-                 [RUN] t1 t4
-                 [IDLE] t2 t3 t5
-    */
    vector<string> waitingThreadIds;
    vector<string> runningThreadIds;
    vector<string> idleThreadIds;
@@ -389,5 +384,9 @@ void AsynchronousTask::Wait(int intervalInMillisec)
     interval.tv_sec =  (long) intervalInMillisec / 1000;              // seconds 
     interval.tv_nsec = (long) ((intervalInMillisec % 1000) * 1E6);    // nanoseconds
     if (nanosleep(&interval, NULL) < 0)
-      printf("warning: delay: %s\n", strerror(errno));
+    {
+        cout<<"Delay error"<<endl;
+        exit(1);
+    }
+      
 }

@@ -97,10 +97,11 @@ struct DataDepo
     ProgramStateInfo* mProgramStateInfo;
     TaskDepot* mTaskDepot;
     ResourceDepot* mResourceDepot;
+    clock_t* mStartTime;
     bool mIsProgramFinished;
     bool mMonitorPrinting;
-    DataDepo(ProgramStateInfo* programStateInfo, TaskDepot* taskDepot, ResourceDepot* resourceDepot) 
-        : mProgramStateInfo(programStateInfo), mTaskDepot(taskDepot), mResourceDepot(resourceDepot), mIsProgramFinished(false), mMonitorPrinting(false) {}
+    DataDepo(ProgramStateInfo* programStateInfo, TaskDepot* taskDepot, ResourceDepot* resourceDepot, clock_t* startTime) 
+        : mProgramStateInfo(programStateInfo), mTaskDepot(taskDepot), mResourceDepot(resourceDepot), mIsProgramFinished(false), mMonitorPrinting(false), mStartTime(startTime) {}
 };
 
 class ParseUtility 
