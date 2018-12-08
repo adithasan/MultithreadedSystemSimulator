@@ -104,7 +104,7 @@ ProgramStateInfo ParseUtility::ParseProgramStateInfo(char** arguments)
     stateInfo.mNumRequiredIterations = atoi (arguments[3]);
     if (stateInfo.mNumRequiredIterations <= 0) 
     {
-        cout<<"Invalid monitor time entered\n";
+        cout<<"Invalid number of iterations entered\n";
         exit(1);
     }
 
@@ -119,6 +119,65 @@ void PrintUtility::PrintProgramStateInfo(ProgramStateInfo* stateInfo)
     cout<< "Required Iterations: " << stateInfo->mNumRequiredIterations <<endl;
 }
 
+void PrintUtility::PrintResourceVector(vector<Resource>& resources)
+{
+    for (Resource resource : resources)
+    {
+        cout<< resource.GetName() << ":" <<resource.GetValue()<<" ";
+    }
+}
+
+void PrintUtility::PrintSystemResources(ResourceDepot& resourceDepot)
+{
+    cout<<"System Resources: " <<endl;
+    for (Resource resource : resourceDepot.mResources)
+    {
+        cout << "\t" << resource.GetName() << ": (maxAvail= " << resource.GetValue() << "), held = 0"<<endl;
+    }
+}
+
+void PrintUtility::PrintTaskStatus(TaskDepot& taskDepot)
+{
+    /*
+    System Tasks:
+    [0] t1 (IDLE, runTime= 50 msec, idleTime= 100 msec):
+    (tid= 140233984644864)
+    A: (needed= 1, held= 0)
+    B: (needed= 1, held= 0)
+    (RUN: 20 times, WAIT: 10 msec)
+    */
+    int counter = 0;
+    cout<<endl;
+    cout<<endl;
+    cout<< "System Tasks: " <<endl;
+    for (AsynchronousTask task: taskDepot.mTasks)
+    {
+        cout<< "[" << counter << "] " << task.GetName();
+        string state;
+        switch(task.GetState())
+        {
+            case Idle:
+                state = "IDLE";
+                break;
+            case Running:
+                state = "RUNNING";
+                break;
+            case Waiting:
+                state = "WAITING";
+                break;
+            default:
+                state = "UNKNOWN";
+                break;
+        }
+        cout<< "(" << state << ", runtime=" << task.GetBusyTime() << " msec, " <<"idleTime= " <<task.GetIdleTime() <<" msec):"<<endl;
+        cout<< "\t(Thread ID: " << task.GetThreadId() << ")" << endl;
+        cout<< "\t(RUN: " << task.GetNumIterations() << " times, WAIT: " << task.GetTimeWaited() << " msec)"<<endl;
+        counter++;
+        cout<<endl;
+    }
+    cout<<endl;
+}
+
 Resource::Resource(string name, int value)
 {
     mName = name;
@@ -127,6 +186,8 @@ Resource::Resource(string name, int value)
 
 string Resource::GetName() const { return mName; }
 int Resource::GetValue() const { return mValue; }
+void Resource::AllocateResourceValue(int value) { mValue -= value; }
+void Resource::ReAcquireResourceValue(int value) { mValue += value; }
 
 AsynchronousTask::AsynchronousTask(string name, int busyTime, int idleTime, int numIterations)
 {
@@ -134,37 +195,57 @@ AsynchronousTask::AsynchronousTask(string name, int busyTime, int idleTime, int 
     mBusyTime = busyTime;
     mIdleTime = idleTime;
     mNumIterations = numIterations;
-    mIsFinished = false;
     mIsClaimed = false;
+    mTaskState = Idle;
+    mTimeWaited = 0;
 }
 
 string AsynchronousTask::GetName() const { return mName; }
+int AsynchronousTask::GetTimeWaited() const { return mTimeWaited; }
 int AsynchronousTask::GetNumIterations() const { return mNumIterations; }
+int AsynchronousTask::GetBusyTime() const { return mBusyTime; }
+int AsynchronousTask::GetIdleTime() const { return mIdleTime; }
+pthread_t AsynchronousTask::GetThreadId() const { return mThreadId; }
 void AsynchronousTask::AddRequiredResource(Resource resource) { mRequiredResources.push_back(resource); }
 int AsynchronousTask::GetNumOfRequiredResourceTypes() const { return mRequiredResources.size(); }
 bool AsynchronousTask::IsClaimed() const { return mIsClaimed; }
-void AsynchronousTask::SetClaimed() 
+void AsynchronousTask::SetClaimed(pthread_t threadId) 
 {
-    if (mIsClaimed == false) mIsClaimed = true;
+    if (mIsClaimed == false)
+    {
+        mIsClaimed = true;
+        mThreadId = threadId;
+    } 
+}
+void AsynchronousTask::SetState(TaskState state){ mTaskState = state; }
+TaskState AsynchronousTask::GetState() const { return mTaskState; }
+
+vector<Resource>& AsynchronousTask::GetRequiredResources() 
+{
+    return mRequiredResources;
 }
 
 
-TaskDepot::TaskDepot() { mMutex = PTHREAD_MUTEX_INITIALIZER; }
-ResourceDepot::ResourceDepot() { mMutex = PTHREAD_MUTEX_INITIALIZER; }
+
+TaskDepot::TaskDepot() { pthread_mutex_init(&mMutex, NULL); }
+ResourceDepot::ResourceDepot() { pthread_mutex_init(&mMutex, NULL); }
 
 AsynchronousTask& TaskDepot::AcquireTask()
 {
+    int foundIndex = -1;
+   
     if (pthread_mutex_lock(&mMutex))
     {
         cout<< "Error locking mutex in TaskDepot::AcquireTask()";
         exit(1);
     }
-    for (AsynchronousTask& task : mTasks)
+    for (int i = 0; i < mTasks.size(); i++)
     {
-        if (!task.IsClaimed()) 
+        if (!mTasks.at(i).IsClaimed()) 
         {
-            task.SetClaimed();
-            return task;
+            mTasks.at(i).SetClaimed(pthread_self());
+            foundIndex = i;
+            break;
         }
     }
     if (pthread_mutex_unlock(&mMutex))
@@ -172,4 +253,102 @@ AsynchronousTask& TaskDepot::AcquireTask()
         cout<< "Error unlocking mutex in TaskDepot::AcquireTask()";
         exit(1);
     }
+    if (foundIndex == -1) 
+    {
+        cout<< "Error finding available task";
+        exit(1);
+    }
+    return mTasks.at(foundIndex);
+}
+
+int TaskDepot::GetNumTasks() const
+{
+    return mTasks.size();
+}
+
+bool ResourceDepot::AcquireResources(vector<Resource>& requestedResources)
+{
+    int numResourceFound = 0;
+    bool allocatedResource = false;
+    if (pthread_mutex_lock(&mMutex))
+    {
+        cout<< "Error locking mutex in ResourceDepot::AcquireResources()";
+        exit(1);
+    }
+    
+    // loop through all required resources and check if they exist
+    for (int i = 0; i < requestedResources.size(); i++)
+    {
+        for (int j = 0; j < mResources.size(); j++)
+        {
+            if (mResources.at(j).GetName() == requestedResources.at(i).GetName() && mResources.at(j).GetValue() >= requestedResources.at(i).GetValue())
+            {
+                numResourceFound++;
+                break;
+            }
+        }
+    }
+
+    // loop through all required resources and allocate them
+    if (numResourceFound == requestedResources.size())
+    {
+        for (int i = 0; i < requestedResources.size(); i++)
+        {
+            for (int j = 0; j < mResources.size(); j++)
+            {
+                if (mResources.at(j).GetName() == requestedResources.at(i).GetName() && mResources.at(j).GetValue() >= requestedResources.at(i).GetValue())
+                {
+                    mResources.at(j).AllocateResourceValue(requestedResources.at(i).GetValue());
+                    break;
+                }
+            }
+        }
+        allocatedResource = true;    
+    }
+    if (pthread_mutex_unlock(&mMutex))
+    {
+        cout<< "Error unlocking mutex in ResourceDepot::AcquireResources()";
+        exit(1);
+    }
+
+    return allocatedResource;
+}
+
+bool ResourceDepot::ReleaseResources(vector<Resource>& requestedResources)
+{
+    if (pthread_mutex_lock(&mMutex))
+    {
+        cout<< "Error locking mutex in ResourceDepot::ReleaseResources()";
+        exit(1);
+    }
+
+    for (int i = 0; i < requestedResources.size(); i++)
+    {
+        for (int j = 0; j < mResources.size(); j++)
+        {
+            if (mResources.at(j).GetName() == requestedResources.at(i).GetName())
+            {
+                mResources.at(j).ReAcquireResourceValue(requestedResources.at(i).GetValue());
+                break;
+            }
+        }
+    }
+    if (pthread_mutex_unlock(&mMutex))
+    {
+        cout<< "Error unlocking mutex in ResourceDepot::ReleaseResources()";
+        exit(1);
+    }
+    return true;
+}
+
+int ResourceDepot::GetNumOfResourceTypes() const { return mResources.size(); }
+
+void AsynchronousTask::Wait(int intervalInMillisec)
+{
+    mTimeWaited += intervalInMillisec;
+    struct timespec interval;
+    interval.tv_sec =  (long) intervalInMillisec / 1000;              // seconds 
+    interval.tv_nsec = (long) ((intervalInMillisec % 1000) * 1E6);    // nanoseconds
+    if (nanosleep(&interval, NULL) < 0)
+      printf("warning: delay: %s\n", strerror(errno));
 }
